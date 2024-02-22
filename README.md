@@ -138,7 +138,7 @@ create_retail_dataset = BigQueryCreateEmptyDatasetOperator(
 ```
 
 #### gcs_to_bigquery
-This task is responsible for transporting the CSV to BQ.
+This task is responsible for loading the CSV into BQ.
 ```
 gcs_to_bigquery= GCSToBigQueryOperator(
         task_id = "gcs_to_bigquery",
@@ -153,7 +153,84 @@ gcs_to_bigquery= GCSToBigQueryOperator(
     )
 ```
 
+#### check_load
+This task uses Soda to check that the data loaded into BQ meets [these criteria](). 
+The task is carried out in a Soda virtual environment configured here. WHY?
+The function returns a check function [defined here]()
+```
+@task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
+    def check_load(scan_name='check_load', checks_subpath='sources'):
+        from include.soda.check_function import check
 
+        return check(scan_name, checks_subpath)
+```
+#### create_country_table
+This task executes an [SQL script]() that contains DDL and DML instructions for creating the _country_ table and inserting data into it respectively.
+```
+with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
+        country_sql = f.read()
+
+    create_country_table = BigQueryExecuteQueryOperator(
+        task_id='create_country_table',
+        sql=country_sql,
+        use_legacy_sql=False,
+        gcp_conn_id="gcp",
+    )
+```
+
+### transform
+This task creates dbt models and loads them into BQ.
+
+```
+transform = DbtTaskGroup(
+        group_id = "transform",
+        project_config = DBT_PROJECT_CONFIG,
+        profile_config = DBT_CONFIG,
+        render_config = RenderConfig(
+            load_method = LoadMode.DBT_LS,
+            select = ['path:models/transform']
+        )
+    )
+```
+`project_config` and `profile_config` are defined [here]().
+
+#### check_transform
+This task checks that the each model meets their [respective criteria]().
+
+```
+@task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
+    def check_transform(scan_name='check_transform', checks_subpath='transform'):
+        from include.soda.check_function import check
+
+        return check(scan_name, checks_subpath)
+```
+Like with [check_load](# check_load), it runs in its own venv and calls [check]().
+
+### report
+This task creates [models]() that will be used to generate plots for the Metabase dashboard.
+```
+report = DbtTaskGroup(
+        group_id='report',
+        project_config=DBT_PROJECT_CONFIG,
+        profile_config=DBT_CONFIG,
+        render_config=RenderConfig(
+            load_method=LoadMode.DBT_LS,
+            select=['path:models/report']
+        )
+    )
+```
+config like transform
+
+#### check_report
+This checks that the reports each meet their [respective predefined criteria]().
+```
+@task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
+    def check_report(scan_name='check_report', checks_subpath='report'):
+        from include.soda.check_function import check
+
+        return check(scan_name, checks_subpath)
+```
+Just like with [check_transform]() and [check_load](), it returns runs in a separate venv and return a defined check function 
 # Result
 
 # Acknowledgement
