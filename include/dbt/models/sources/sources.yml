@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: retail
+    database: online-retail-dp # replace with your ID
+
+    tables:
+      - name: raw_invoices
+      - name: country
