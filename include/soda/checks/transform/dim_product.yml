@@ -1,0 +1,17 @@
+checks for dim_product:
+  - schema:
+      fail:
+        when required column missing: [product_id, description, price]
+        when wrong column type:
+          product_id: string
+          description: string
+          price: float64
+
+  - duplicate_count(product_id) = 0:
+      name: All products are unique
+
+  - missing_count(product_id) = 0:
+      name: All products have a key
+
+  - min(price):
+      fail: when < 0
