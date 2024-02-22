@@ -1,16 +1,16 @@
 # End-to-End Data Pipeline For An E-rerail Company's Customer Transaction Dataset
-In this project, I develop a pipeline that extracts data from Kaggle and prepares the data, at the end of the pipeline, for building a dashboard. 
-Along the pipeline, I perform some data preprocessing/transformation, and run data quality checks.
+In this project, I develop a an automated data pipeline that extracts data from Kaggle and prepares the data, at the end of the pipeline, for building a dashboard. 
+Along the pipeline, I automate several other tasks including data preprocessing/transformation and running data quality checks.
 
 ## Tools used
 Here are the tools used in this project and their function in the project
 - _Airflow_: for orchestrating the pipeline
 - _Kaggle API_: for extracting the desired dataset from Kaggle
-- _Astronomer_: for setting-up Airflow
+- _Astro CLI_: for setting-up Airflow and testing the DAG 
 - _Docker_: for developing and maintaining containers that host my Airflow instance
-- _Google Cloud Storage (GCS)_: for storing the dataset on the cloud
+- _Google Cloud Storage (GCS)_: for storing the CSV file on the cloud
 - _Google BigQuery(BQ)_: data warehouse for performing data analysis  
-- _Soda_: for running data quality checks in multiple points along the pipeline
+- _Soda_: for running data quality checks at multiple points along the pipeline
 - _dbt_: for building data models
 - _Cosmos_: for integrating dbt with Airflow
 - _Metabase_: for building the dashboard
@@ -21,10 +21,10 @@ According to UCI Machine Learning Repository, the dataset
 > is a transactional dataset which contains all the transactions occurring between 01/12/2010 and 09/12/2011 for a UK-based and registered non-store online retail.
 The company mainly sells unique all-occasion gifts. Many customers of the company are wholesalers.
 
-It contains 541, 909 rows and 8 features.
+It contains 541,909 rows and 8 features.
 
 ### Features and their descriptions
-- _InvoiceNo_: a 6-digit integral number uniquely assigned to each transaction. If this code starts with letter 'c', it indicates a cancellation
+- _InvoiceNo_: a 6-digit integral number uniquely assigned to each transaction. If this code starts with letter 'C', it indicates a cancellation
 - _StockCode_: a 5-digit integral number uniquely assigned to each distinct product
 - _Description_: product name
 - _Quantity_: the quantities of each product (item) per transaction
@@ -34,13 +34,14 @@ It contains 541, 909 rows and 8 features.
 - _Country_: the name of the country where each customer resides
 
 ## Scope
-This project focuses on building an automated data pipeline that extracts a dataset from Kaggle and prepares the data for building a dashboard.
+This project focuses on building an automated data pipeline that extracts a dataset from Kaggle and prepares data for building a dashboard.
 Data quality checks were performed at mutiple points along the pipeline. No machine learning models were trained in this project.
 
-## Methodology
+## The Workflow
 The picture below shows the sequence of tasks that make up the pipeline.
 ![picture of the pipeline](# url of the image)
 
+## Methodology
 The following Airflow `chain` function describes the workflow of the tasks that prepare the data for reporting.
 ```
 chain(
@@ -180,7 +181,7 @@ with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
 
 ### transform
 This task creates dbt models and loads them into BQ.
-
+(Insert data models)[]
 ```
 transform = DbtTaskGroup(
         group_id = "transform",
@@ -232,6 +233,9 @@ This checks that the reports each meet their [respective predefined criteria]().
 ```
 Just like with [check_transform]() and [check_load](), it returns runs in a separate venv and return a defined check function 
 # Result
+Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the  root folder, no dataset in the CGS bucket and no data in the data warehouse.
+
+The next videos show the dashboard made with the "report_..." tables made with dbt.
 
 # Acknowledgement
 
