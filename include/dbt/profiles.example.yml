@@ -1,0 +1,12 @@
+retail:
+  target:
+  outputs:
+    dev:
+      type:
+      method:
+      keyfile:
+      project:
+      dataset:
+      threads:
+      timeout_seconds:
+      location:
