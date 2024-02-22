@@ -95,12 +95,12 @@ def retail():
 
         return check(scan_name, checks_subpath)
     
-    with open('/usr/local/airflow/include/table/country_ddl.sql', 'r') as f:
-        ddl_sql = f.read()
+    with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
+        country_sql = f.read()
 
     create_country_table = BigQueryExecuteQueryOperator(
         task_id='create_country_table',
-        sql=ddl_sql,
+        sql=country_sql,
         use_legacy_sql=False,
         gcp_conn_id="gcp",
     )
