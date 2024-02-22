@@ -1,0 +1,14 @@
+data_source retail:
+  type:
+  connection:
+    account_info_json_path:
+    auth_scopes:
+      -
+      -
+      -
+    project_id:
+    dataset:
+soda_cloud:
+  host:
+  api_key_id:
+  api_key_secret:
