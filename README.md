@@ -39,7 +39,7 @@ Data quality checks were performed at mutiple points along the pipeline. No mach
 
 ## The Workflow
 The picture below shows the sequence of tasks that make up the pipeline.
-![picture of the pipeline](# url of the image)
+![picture of the pipeline](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/pipeline.png)
 
 ## Methodology
 The following Airflow `chain` function describes the workflow of the tasks that prepare the data for reporting.
@@ -58,6 +58,7 @@ chain(
         check_report()
     )
 ```
+### Chain breakdown
 #### download_dataset
 This task is a `PythonOperator` that downloads the dataset from Kaggle to my local machine.
 ```
@@ -66,7 +67,7 @@ download_dataset = PythonOperator(
     python_callable= _download_dataset,
     )
 ```
-Here's the function that the `PythonOperator` implements.
+Here's the callable that the `PythonOperator` implements.
 
 ```
 # load kaggle API credentials in 'kaggle_config' variable
@@ -91,9 +92,9 @@ def _download_dataset():
 **PS**: `/usr/local/airflow` is the root directory of the project
 
 #### preprocess_date_format
-The pipeline was failing to transport the CSV file from GCS to BigQuery, because it had trouble parsing the _InvoiceDate_ column.
-For this reason, I created this task that transforms the column into a string format that preserves the actual timestamp of the transactions and makes for a successful transport.
-The task also saves and replaces the downloaded CSV. The task is performed before uploading the dataset to GCS.
+The pipeline was failing to load the CSV file from GCS to BigQuery because it had trouble parsing the _InvoiceDate_ column.
+For this reason, I created this task that transforms the column into a string format that preserves the actual timestamp of the transactions and makes for a successful transport. The task is performed before uploading the dataset to GCS.The dataset is transformed in place.
+
 The task, a`PythonOperator`, is shown below
 ```
 preprocess_date_format = PythonOperator(
@@ -101,7 +102,7 @@ preprocess_date_format = PythonOperator(
         python_callable= _preprocess_date_format,
     )
 ```
-Here is its Python callable
+Here's the callable it implements
 ```
 def _preprocess_date_format():
   df = pd.read_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", encoding='iso-8859-1')
@@ -114,7 +115,7 @@ def _preprocess_date_format():
 ```
 
 #### upload_csv_to_gcs
-This `LocalFilesystemToGCSOperator` task moves the CSV to GCS.
+This `LocalFilesystemToGCSOperator` task uploads the CSV to GCS.
 ```
 upload_csv_to_gcs = LocalFilesystemToGCSOperator(
         task_id = 'upload_csv_to_gcs',
@@ -126,7 +127,7 @@ upload_csv_to_gcs = LocalFilesystemToGCSOperator(
     )
 ```
 _PS_: `gcp` is the ID of the connection (made in the Airflow Web UI) between Airflow and a Google Cloud service account.
-The service account has admin priviledges to BigQuery and GCS.
+The service account has admin priviledges for BigQuery and GCS.
 
 #### create_retail_dataset
 This task creates an empty dataset in BigQuery that stores all tables to be created.
@@ -139,7 +140,7 @@ create_retail_dataset = BigQueryCreateEmptyDatasetOperator(
 ```
 
 #### gcs_to_bigquery
-This task is responsible for loading the CSV into BQ.
+This task is responsible for loading the CSV into BigQuery.
 ```
 gcs_to_bigquery= GCSToBigQueryOperator(
         task_id = "gcs_to_bigquery",
@@ -155,9 +156,9 @@ gcs_to_bigquery= GCSToBigQueryOperator(
 ```
 
 #### check_load
-This task uses Soda to check that the data loaded into BQ meets [these criteria](). 
-The task is carried out in a Soda virtual environment configured here. WHY?
-The function returns a check function [defined here]()
+This task uses Soda to check that the loaded data meets [these criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/checks/sources/raw_invoices.yml). 
+The task is carried out in a Soda virtual environment ([configured here](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/Dockerfile)) to avoid dependency conflicts.
+
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
     def check_load(scan_name='check_load', checks_subpath='sources'):
@@ -165,8 +166,11 @@ The function returns a check function [defined here]()
 
         return check(scan_name, checks_subpath)
 ```
+The function returns a called [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
+
+
 #### create_country_table
-This task executes an [SQL script]() that contains DDL and DML instructions for creating the _country_ table and inserting data into it respectively.
+This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/table/country.sql) that contains DDL and DML statements for creating the _country_ table and inserting data into it respectively.
 ```
 with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
         country_sql = f.read()
@@ -180,8 +184,8 @@ with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
 ```
 
 ### transform
-This task creates dbt models and loads them into BQ.
-(Insert data models)[]
+This task creates dbt models and loads them into BigQuery.
+
 ```
 transform = DbtTaskGroup(
         group_id = "transform",
@@ -193,10 +197,10 @@ transform = DbtTaskGroup(
         )
     )
 ```
-`project_config` and `profile_config` are defined [here]().
+# (Insert data models)[]
 
 #### check_transform
-This task checks that the each model meets their [respective criteria]().
+This task checks that the each model meets their [respective criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/transform).
 
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
@@ -205,10 +209,10 @@ This task checks that the each model meets their [respective criteria]().
 
         return check(scan_name, checks_subpath)
 ```
-Like with [check_load](# check_load), it runs in its own venv and calls [check]().
+Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
 
 ### report
-This task creates [models]() that will be used to generate plots for the Metabase dashboard.
+This task creates models ([defined here](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/report)) that will be used to generate plots for the Metabase dashboard.
 ```
 report = DbtTaskGroup(
         group_id='report',
@@ -220,10 +224,9 @@ report = DbtTaskGroup(
         )
     )
 ```
-config like transform
 
 #### check_report
-This checks that the reports each meet their [respective predefined criteria]().
+This checks that the reports each meet their [respective predefined criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/report).
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
     def check_report(scan_name='check_report', checks_subpath='report'):
@@ -231,7 +234,7 @@ This checks that the reports each meet their [respective predefined criteria]().
 
         return check(scan_name, checks_subpath)
 ```
-Just like with [check_transform]() and [check_load](), it returns runs in a separate venv and return a defined check function 
+Similar to the check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv. 
 # Result
 Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the  root folder, no dataset in the CGS bucket and no data in the data warehouse.
 
