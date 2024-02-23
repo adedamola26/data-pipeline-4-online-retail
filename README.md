@@ -212,7 +212,7 @@ This task checks that the each model meets their [respective criteria](https://g
 Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
 
 ### report
-This task creates [models]() that will be used to generate plots for the Metabase dashboard.
+This task creates models ([defined here](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/report)) that will be used to generate plots for the Metabase dashboard.
 ```
 report = DbtTaskGroup(
         group_id='report',
@@ -224,10 +224,9 @@ report = DbtTaskGroup(
         )
     )
 ```
-config like transform
 
 #### check_report
-This checks that the reports each meet their [respective predefined criteria]().
+This checks that the reports each meet their [respective predefined criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/report).
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
     def check_report(scan_name='check_report', checks_subpath='report'):
@@ -235,7 +234,7 @@ This checks that the reports each meet their [respective predefined criteria]().
 
         return check(scan_name, checks_subpath)
 ```
-Just like with [check_transform]() and [check_load](), it returns runs in a separate venv and return a defined check function 
+Similar to the check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv. 
 # Result
 Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the  root folder, no dataset in the CGS bucket and no data in the data warehouse.
 
