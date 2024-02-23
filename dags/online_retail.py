@@ -5,18 +5,13 @@ from kaggle.api.kaggle_api_extended import KaggleApi
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator, BigQueryExecuteQueryOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from astro import sql as aql
-from astro.files import File
 from airflow.models.baseoperator import chain
-from astro.sql.table import Table, Metadata
-from astro.constants import FileType
-from astro.dataframes.load_options import PandasLoadOptions
 from airflow.operators.python_operator import PythonOperator
 import pandas as pd
 from include.dbt.cosmos_config import DBT_PROJECT_CONFIG, DBT_CONFIG
 from cosmos.airflow.task_group import DbtTaskGroup
 from cosmos.constants import LoadMode
-from cosmos.config import ProjectConfig, RenderConfig
+from cosmos.config import RenderConfig
 
 
 @dag(
