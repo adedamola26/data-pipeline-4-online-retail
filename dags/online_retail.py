@@ -27,17 +27,15 @@ def retail():
 
         df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
 
+        # Group by 'InvoiceNo' and take the maximum 'InvoiceDate' for each group
+        df['InvoiceDate'] = df.groupby('InvoiceNo')['InvoiceDate'].transform('max')
+
         df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
         
         df.to_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", index=False)
 
     def _download_dataset():
-        with open('/usr/local/airflow/.kaggle/kaggle.json') as f:
-            kaggle_config = json.load(f) 
-
         api = KaggleApi()
-        api.set_config_value('username', kaggle_config['username'])
-        api.set_config_value('key', kaggle_config['key'])
         api.authenticate()
         api.dataset_download_files(
         dataset = 'tunguz/online-retail',
