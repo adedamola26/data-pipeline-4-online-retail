@@ -1,0 +1,16 @@
+checks for dim_invoice:
+  - schema:
+      fail:
+        when required column missing:
+          [invoice_key, invoiceno, invoicedate, customer_key]
+        when wrong column type:
+          invoice_key: string
+          invoiceno: string
+          invoicedate: string
+          customer_key: string
+
+  - missing_count(invoice_key) = 0:
+      name: All invoices have a key
+
+  - duplicate_count(invoice_key) = 0:
+      name: All invoices are unique
