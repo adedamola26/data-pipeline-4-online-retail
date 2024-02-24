@@ -1,0 +1,18 @@
+checks for fct_invoice_line_value:
+  - schema:
+      fail:
+        when required column missing:
+          [invoice_key, product_key, date_key, quantity, total_price]
+        when wrong column type:
+          invoice_key: string
+          product_key: string
+          date_key: string
+          quantity: int
+          total_price: float64
+
+  - failed rows:
+      name: All invoice lines have a positive total price
+      fail query: |
+        SELECT invoice_key, total_price
+        FROM fct_invoice_line_value
+        WHERE total_price < 0
