@@ -1,5 +1,5 @@
 SELECT DISTINCT
-    {{ dbt_utils.generate_surrogate_key(['StockCode', 'Description', 'UnitPrice']) }} as product_id,
+    {{ dbt_utils.generate_surrogate_key(['StockCode', 'Description', 'UnitPrice']) }} as product_key,
 		StockCode AS stock_code,
     Description AS description,
     UnitPrice AS price
