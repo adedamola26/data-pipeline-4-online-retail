@@ -248,3 +248,12 @@ INSERT INTO `retail.country` (`id`, `iso`, `name`, `nicename`, `iso3`, `numcode`
 (237, 'YE', 'YEMEN', 'Yemen', 'YEM', 887, 967),
 (238, 'ZM', 'ZAMBIA', 'Zambia', 'ZMB', 894, 260),
 (239, 'ZW', 'ZIMBABWE', 'Zimbabwe', 'ZWE', 716, 263);
+
+ALTER TABLE `retail.country`
+DROP COLUMN `id`;
+
+ALTER TABLE `retail.country`
+DROP COLUMN `name`;
+
+ALTER TABLE `retail.country`
+RENAME COLUMN `nicename` to `name`;
