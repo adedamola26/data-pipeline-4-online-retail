@@ -136,7 +136,7 @@ upload_csv_to_gcs = LocalFilesystemToGCSOperator(
         mime_type = 'text/csv'
     )
 ```
-_PS_: `gcp` is the ID of the connection (made in the Airflow Web UI) between Airflow and a Google Cloud service account.
+_PS_: `gcp` is the ID of the connection (configured in the Airflow Web UI) between Airflow and a Google Cloud service account.
 The service account has admin priviledges for BigQuery and GCS.
 
 #### create_retail_dataset
@@ -167,7 +167,7 @@ gcs_to_bigquery= GCSToBigQueryOperator(
 
 #### check_load
 This task uses Soda to check that the loaded data meets [these criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/checks/sources/raw_invoices.yml). 
-The task is carried out in a Soda virtual environment ([configured here](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/Dockerfile)) to avoid dependency conflicts.
+The task is carried out in a Soda virtual environment ([configured here](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/Dockerfile)) to avoid dependency conflicts with Airflow.
 
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
@@ -180,7 +180,7 @@ The function returns a called [check function](https://github.com/adedamola26/da
 
 
 #### create_country_table
-This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/table/country.sql) that contains DDL and DML statements for creating the _country_ table and inserting data into it respectively.
+This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/table/country.sql) that contains DDL statements for creating the _country_ table and DML statements for inserting data into it and altering it.
 ```
 with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
         country_sql = f.read()
@@ -194,8 +194,7 @@ with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
 ```
 
 ### transform
-This task creates dbt models and loads them into BigQuery.
-
+This task creates [dbt models](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/transform) and loads them into BigQuery.
 ```
 transform = DbtTaskGroup(
         group_id = "transform",
@@ -222,7 +221,7 @@ This task checks that the each model meets their [respective criteria](https://g
 Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
 
 ### report
-This task creates models ([defined here](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/report)) that will be used to generate plots for the Metabase dashboard.
+This task creates tables ([defined here](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/report)) that will be used to generate plots for the Metabase dashboard.
 ```
 report = DbtTaskGroup(
         group_id='report',
@@ -236,7 +235,7 @@ report = DbtTaskGroup(
 ```
 
 #### check_report
-This checks that the reports each meet their [respective predefined criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/report).
+This checks that each report meets its [respective criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/report).
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
     def check_report(scan_name='check_report', checks_subpath='report'):
@@ -244,7 +243,8 @@ This checks that the reports each meet their [respective predefined criteria](ht
 
         return check(scan_name, checks_subpath)
 ```
-Similar to the check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv. 
+Similar to the check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv.
+
 # Result
 Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the  root folder, no dataset in the CGS bucket and no data in the data warehouse.
 
