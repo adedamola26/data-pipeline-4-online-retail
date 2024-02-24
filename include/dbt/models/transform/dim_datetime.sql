@@ -1,11 +1,13 @@
 WITH datetime_cte AS (  
   SELECT DISTINCT
-    InvoiceDate AS datetime_id,
+    {{ dbt_utils.generate_surrogate_key(['InvoiceDate']) }} as date_key,
+    InvoiceDate as datetime_id,
     PARSE_DATETIME('%m/%d/%Y %I:%M %p', InvoiceDate) AS date_part,
   FROM {{ source('retail', 'raw_invoices') }}
   WHERE InvoiceDate IS NOT NULL
 )
 SELECT
+  date_key,
   datetime_id,
   date_part as datetime,
   EXTRACT(YEAR FROM date_part) AS year,
