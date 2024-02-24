@@ -25,3 +25,5 @@ metabase-data/
 include/soda/configuration.yml
 tests/
 include/dbt/profiles.yml
+astro_README.md
+packages.txt
