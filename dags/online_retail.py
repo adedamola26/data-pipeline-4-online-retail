@@ -27,7 +27,12 @@ def retail():
 
         df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
 
-        # Group by 'InvoiceNo' and take the maximum 'InvoiceDate' for each group
+        """
+        43 invoices have invoice lines with different timestamps. 
+        The difference in the time stamps is one minute.
+        We will take the maximum timestamp for each invoice.
+        """
+
         df['InvoiceDate'] = df.groupby('InvoiceNo')['InvoiceDate'].transform('max')
 
         df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
@@ -36,7 +41,7 @@ def retail():
 
     def _download_dataset():
         api = KaggleApi()
-        api.authenticate()
+        api.authenticate() # Kaggle API is set in .env file
         api.dataset_download_files(
         dataset = 'tunguz/online-retail',
         path = '/usr/local/airflow/include/dataset',
