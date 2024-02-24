@@ -58,7 +58,7 @@ The picture below shows the sequence of tasks that make up the pipeline.
 ![picture of the pipeline](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/pipeline.png)
 
 ## ERD for source tables
-[!ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/ERD.png)
+![ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/ERD.png)
 
 _PK_- Primary Key, _FK_- Foreign Key
 
@@ -67,7 +67,7 @@ __Highlights__:
 - Several products with same `StockCode` contain different descriptions and several products with the same 'StockCode' and `Description` contain different prices. Hence, the composite PK in `Product`.
 
 ## Dimesional Model
-[!Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
+![Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
 
 `NK`- Natural Key
 
@@ -265,8 +265,11 @@ Similar to the other check tasks, it returns a call on the [check function](http
 Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the  root folder, no dataset in the CGS bucket and no data in the data warehouse.
 
 The next videos show the dashboard made with the "report_..." tables made with dbt.
+# Endnote
+If you've got any feedback for me, please feel free to reach out at adedamolade@gmail.com or connect with me on [LinkedIn](https://www.linkedin.com/in/adedamolade/). 
 
-# References
+Thank you for reading!
+## References
 
 Lamberti, M. (2023, August 8). Data Engineer Project: An end-to-end airflow data pipeline with BigQuery, DBT soda, and more!. YouTube. https://www.youtube.com/watch?v=DzxtCxi4YaA&t=1554s&ab_channel=DatawithMarc
 
