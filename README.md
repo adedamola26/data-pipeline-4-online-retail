@@ -1,5 +1,5 @@
 # End-to-End Data Pipeline For An E-rerail Company's Customer Transaction Dataset
-In this project, I develop a an automated data pipeline that extracts data from Kaggle and prepares the data, at the end of the pipeline, for building a dashboard. 
+In this project, I develop a a data pipeline that extracts data from Kaggle and prepares the data, at the end of the pipeline, for building a dashboard. 
 Along the pipeline, I automate several other tasks including data preprocessing/transformation and running data quality checks.
 
 ## Tools used
@@ -15,26 +15,42 @@ Here are the tools used in this project and their function in the project
 - _Cosmos_: for integrating dbt with Airflow
 - _Metabase_: for building the dashboard
 - _Python_: for writing DAG script
+- _SQL_: for creating new tables and running analysis in BigQuery
 
 ## Dataset
-According to UCI Machine Learning Repository, the dataset
+According to UCI Machine Learning Repository (main author of dataset), the dataset
 > is a transactional dataset which contains all the transactions occurring between 01/12/2010 and 09/12/2011 for a UK-based and registered non-store online retail.
 The company mainly sells unique all-occasion gifts. Many customers of the company are wholesalers.
 
-It contains 541,909 rows and 8 features.
+It contains 541,909 rows and 8 features. 406,829 rows contain non-null values. The dataset contains 25,800 unique invoices with each row of the dataset representing a unique invoice line.
 
 ### Features and their descriptions
-- _InvoiceNo_: a 6-digit integral number uniquely assigned to each transaction. If this code starts with letter 'C', it indicates a cancellation
-- _StockCode_: a 5-digit integral number uniquely assigned to each distinct product
-- _Description_: product name
-- _Quantity_: the quantities of each product (item) per transaction
-- _InvoiceDate_: the day and time when each transaction was generated
-- _UnitPrice_: product price per unit (£)
-- _CustomerID_: a 5-digit integral number uniquely assigned to each customer
-- _Country_: the name of the country where each customer resides
+_InvoiceNo_
+> a 6-digit integral number uniquely assigned to each transaction. If this code starts with letter 'C', it indicates a cancellation
+
+_StockCode_
+> a 5-digit integral number uniquely assigned to each distinct product
+
+_Description_
+> product name
+
+_Quantity_
+> the quantities of each product (item) per transaction
+
+_InvoiceDate_
+> the day and time when each transaction was generated
+
+_UnitPrice_
+> product price per unit (£)
+
+_CustomerID_
+> a 5-digit integral number uniquely assigned to each customer
+
+_Country_
+> the name of the country where each customer resides
 
 ## Scope
-This project focuses on building an automated data pipeline that extracts a dataset from Kaggle and prepares data for building a dashboard.
+This project focused on building a data pipeline that extracts a dataset from Kaggle and prepared the data for building a dashboard.
 Data quality checks were performed at mutiple points along the pipeline. No machine learning models were trained in this project.
 
 ## The Workflow
@@ -70,49 +86,43 @@ download_dataset = PythonOperator(
 Here's the callable that the `PythonOperator` implements.
 
 ```
-# load kaggle API credentials in 'kaggle_config' variable
+
 def _download_dataset():
-  with open('/usr/local/airflow/.kaggle/kaggle.json') as f:
-    kaggle_config = json.load(f)
-
-# authenticate the Kaggle API
-  api = KaggleApi()
-  api.set_config_value('username', kaggle_config['username'])
-  api.set_config_value('key', kaggle_config['key'])
-  api.authenticate()
-
-# download the unzipped dataset from specified source to desired location in local machine
-  api.dataset_download_files(
-  dataset = 'tunguz/online-retail',
-  path = '/usr/local/airflow/include/dataset',
-  force = True,
-  unzip = True
+        api = KaggleApi()
+        api.authenticate() # Kaggle API is set in .env file
+        api.dataset_download_files(
+        dataset = 'tunguz/online-retail',
+        path = '/usr/local/airflow/include/dataset',
+        force = True,
+        unzip = True
         )
 ```
-**PS**: `/usr/local/airflow` is the root directory of the project
 
 #### preprocess_date_format
-The pipeline was failing to load the CSV file from GCS to BigQuery because it had trouble parsing the _InvoiceDate_ column.
-For this reason, I created this task that transforms the column into a string format that preserves the actual timestamp of the transactions and makes for a successful transport. The task is performed before uploading the dataset to GCS.The dataset is transformed in place.
+The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
+For this reason, I created this `PythonOperator` task that casts the column into a string and preserves the `datetime` of the invoice line. This allow the loading into BigQuery successful. 
 
-The task, a`PythonOperator`, is shown below
-```
-preprocess_date_format = PythonOperator(
-        task_id='preprocess_date_format',
-        python_callable= _preprocess_date_format,
-    )
-```
-Here's the callable it implements
+Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute. _See snippet below_ 
+
+To prevent `dbt` from generating different surrogate keys for each invoice, for each invoice, we will take the maximum `datetime` as the new `InvoiceDate` for each line.
+
+Here's the callable that implements this task
 ```
 def _preprocess_date_format():
-  df = pd.read_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", encoding='iso-8859-1')
-  
-  df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
-  
-  df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
-  
-  df.to_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", index=False)
+	df = pd.read_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", encoding='iso-8859-1')
+	
+	df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
+	
+	# For each invoice, assume the maximum `datetime` is the `InvoiceDate` for each line
+	
+	df['InvoiceDate'] = df.groupby('InvoiceNo')['InvoiceDate'].transform('max')
+	
+	df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
+	
+	df.to_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", index=False)
 ```
+
+This task is performed before uploading the dataset to GCS and the transformation is performed in place.
 
 #### upload_csv_to_gcs
 This `LocalFilesystemToGCSOperator` task uploads the CSV to GCS.
