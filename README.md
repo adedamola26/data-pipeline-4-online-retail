@@ -57,6 +57,24 @@ Data quality checks were performed at mutiple points along the pipeline. No mach
 The picture below shows the sequence of tasks that make up the pipeline.
 ![picture of the pipeline](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/pipeline.png)
 
+## ERD for source tables
+[!ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/ERD.png)
+
+_PK_- Primary Key, _FK_- Foreign Key
+
+__Highlights__:
+- `Customer_ID` alone cannot uniquely identify each customer because several `Customer_ID`s have different countries ascribed to them. Hence, the composite PK in `Customer`.
+- Several products with same `StockCode` contain different descriptions and several products with the same 'StockCode' and `Description` contain different prices. Hence, the composite PK in `Product`.
+
+## Dimesional Model
+[!Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
+
+`NK`- Natural Key
+
+__Highlights__:
+- The fact table stores relevant details for each invoice line
+- Each invoice is owned by one customer and a table join can be performed to link an invoice line to the customer
+
 ## Methodology
 The following Airflow `chain` function describes the workflow of the tasks that prepare the data for reporting.
 ```
@@ -206,8 +224,6 @@ transform = DbtTaskGroup(
         )
     )
 ```
-# (Insert data models)[]
-
 #### check_transform
 This task checks that the each model meets their [respective criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/transform).
 
@@ -243,13 +259,18 @@ This checks that each report meets its [respective criteria](https://github.com/
 
         return check(scan_name, checks_subpath)
 ```
-Similar to the check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv.
+Similar to the other check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv.
 
 # Result
 Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the  root folder, no dataset in the CGS bucket and no data in the data warehouse.
 
 The next videos show the dashboard made with the "report_..." tables made with dbt.
 
-# Acknowledgement
-
 # References
+
+Lamberti, M. (2023, August 8). Data Engineer Project: An end-to-end airflow data pipeline with BigQuery, DBT soda, and more!. YouTube. https://www.youtube.com/watch?v=DzxtCxi4YaA&t=1554s&ab_channel=DatawithMarc
+
+Data Warehouse Fundamentals for beginners | Udemy. Data Warehouse Fundamentals for Beginners. https://www.udemy.com/course/data-warehouse-fundamentals-for-beginners/ 
+
+Kimball, R., & Ross, M. (2013). The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling. John Wiley & Sons.
+
