@@ -58,7 +58,7 @@ The picture below shows the sequence of tasks that make up the pipeline.
 ![picture of the pipeline](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/pipeline.png)
 
 ## ERD for source tables
-[!ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/ERD.png)
+![ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/ERD.png)
 
 _PK_- Primary Key, _FK_- Foreign Key
 
@@ -67,7 +67,7 @@ __Highlights__:
 - Several products with same `StockCode` contain different descriptions and several products with the same 'StockCode' and `Description` contain different prices. Hence, the composite PK in `Product`.
 
 ## Dimesional Model
-[!Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
+![Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
 
 `NK`- Natural Key
 
