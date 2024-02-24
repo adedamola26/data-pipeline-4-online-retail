@@ -9,7 +9,7 @@ Here are the tools used in this project and their function in the project
 - _Astro CLI_: for setting-up Airflow and testing the DAG 
 - _Docker_: for developing and maintaining containers that host my Airflow instance
 - _Google Cloud Storage (GCS)_: for storing the CSV file on the cloud
-- _Google BigQuery(BQ)_: data warehouse for performing data analysis  
+- _Google BigQuery(BQ)_: data warehouse/data mart for performing data analysis  
 - _Soda_: for running data quality checks at multiple points along the pipeline
 - _dbt_: for building data models
 - _Cosmos_: for integrating dbt with Airflow
