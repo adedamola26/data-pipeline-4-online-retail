@@ -1,7 +1,7 @@
 # End-to-End Data Pipeline For An E-rerail Company's Customer Transaction Dataset
 
 In this project, I develop a a data pipeline that extracts data from Kaggle and prepares the data, at the end of the pipeline, for building a dashboard.
-Along the pipeline, I automate several other tasks including data preprocessing/transformation and running data quality checks.
+Along the pipeline, I automate several other tasks including data preprocessing and running data quality checks.
 
 ## Tools used
 
@@ -63,11 +63,6 @@ _Country_
 
 > the name of the country where each customer resides
 
-## Scope
-
-This project focused on building a data pipeline that extracts a dataset from Kaggle and prepared the data for building a dashboard.
-Data quality checks were performed at mutiple points along the pipeline. No machine learning models were trained in this project.
-
 ## The Workflow
 
 The picture below shows the sequence of tasks that make up the pipeline.
@@ -101,13 +96,11 @@ The following Airflow `chain` function describes the workflow of the tasks that 
 
 ```
 chain(
-        download_dataset,
-        preprocess_date_field,
-        upload_csv_to_gcs,
-        create_retail_dataset,
-        gcs_to_bigquery,
-        check_load(),
-        create_country_table,
+	[download_dataset, create_empty_bq_dataset],
+	[preprocess_date_field, create_country_table],
+	upload_csv_to_gcs, 
+	gcs_to_bigquery,
+	check_load(),
         transform,
         check_transform(),
         report,
@@ -116,6 +109,11 @@ chain(
 ```
 
 ### Chain breakdown
+I arranged the first four tasks the way I did to test if there could be any improvement in DAG runtime. The result: no significant improvement noticed. Regardless, I stuck with the solution. 
+
+`download_dataset` and `create_empty_bq_dataset` can successfuly run in parallel because they are independent of each other. `create_country_table` is downstream only to `create_empty_bq_dataset` while `preprocess_date_field` is downstream only to `download_dataset`. Once the first four tasks run successfully, the next tasks get triggered, with each task being upstream to the the next task.
+
+To learn more about the function of each task, keep reading. 
 
 #### download_dataset
 
@@ -143,6 +141,18 @@ def _download_dataset():
         )
 ```
 
+#### create_empty_bq_dataset
+
+This task creates an empty dataset in BigQuery that stores all tables to be created.
+
+```
+create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
+	task_id="create_empty_bq_dataset",
+	dataset_id="retail",
+	gcp_conn_id="gcp"
+)
+```
+
 #### preprocess_date_field
 
 The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
@@ -150,7 +160,7 @@ For this reason, I created this `PythonOperator` task that casts the column into
 
 Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute. _See snippet below_
 
-To prevent `dbt` from generating different surrogate keys for each invoice, for each invoice, we will take the maximum `datetime` as the new `InvoiceDate` for each line.
+To ensure consistent surrogate keys in dbt for each invoice, we'll set the InvoiceDate for each line to be the maximum datetime within that specific invoice.
 
 Here's the callable that implements this task
 
@@ -188,18 +198,6 @@ upload_csv_to_gcs = LocalFilesystemToGCSOperator(
 
 _PS_: `gcp` is the ID of the connection (configured in the Airflow Web UI) between Airflow and a Google Cloud service account.
 The service account has admin priviledges for BigQuery and GCS.
-
-#### create_retail_dataset
-
-This task creates an empty dataset in BigQuery that stores all tables to be created.
-
-```
-create_retail_dataset = BigQueryCreateEmptyDatasetOperator(
-	task_id="create_retail_dataset",
-	dataset_id="retail",
-	gcp_conn_id="gcp"
-)
-```
 
 #### gcs_to_bigquery
 
@@ -318,7 +316,7 @@ The next videos show the dashboard made with the "report\_..." tables made with 
 
 # Endnote
 
-If you've got any feedback for me, please feel free to reach out at adedamolade@gmail.com or connect with me on [LinkedIn](https://www.linkedin.com/in/adedamolade/).
+If you've got any feedback for me, please feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/adedamolade/).
 
 Thank you for reading!
 
