@@ -22,7 +22,7 @@ from cosmos.config import RenderConfig
 )
 def retail():
 
-    def _preprocess_date_format():
+    def _preprocess_date_field():
         df = pd.read_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", encoding='iso-8859-1')
 
         df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
@@ -54,9 +54,9 @@ def retail():
     python_callable= _download_dataset,
     )
 
-    preprocess_date_format = PythonOperator(
-        task_id='preprocess_date_format',
-        python_callable= _preprocess_date_format,
+    preprocess_date_field = PythonOperator(
+        task_id='preprocess_date_field',
+        python_callable= _preprocess_date_field,
     )
 
 
@@ -139,7 +139,7 @@ def retail():
 
     chain(
         download_dataset,
-        preprocess_date_format,
+        preprocess_date_field,
         upload_csv_to_gcs,
         create_retail_dataset,
         gcs_to_bigquery,
