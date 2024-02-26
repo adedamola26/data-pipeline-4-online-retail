@@ -129,16 +129,16 @@ download_dataset = PythonOperator(
 Here's the callable that the `PythonOperator` implements.
 
 ```
-
 def _download_dataset():
-        api = KaggleApi()
-        api.authenticate() # Kaggle API is set in .env file
-        api.dataset_download_files(
-        dataset = 'tunguz/online-retail',
-        path = '/usr/local/airflow/include/dataset',
-        force = True,
-        unzip = True
-        )
+    from kaggle.api.kaggle_api_extended import KaggleApi
+    api = KaggleApi()
+    api.authenticate() # Kaggle API is set in .env file
+    api.dataset_download_files(
+    dataset = 'tunguz/online-retail',
+    path = '/usr/local/airflow/include/dataset',
+    force = True,
+    unzip = True
+    )
 ```
 
 #### create_empty_bq_dataset
@@ -166,20 +166,25 @@ Here's the callable that implements this task
 
 ```
 def _preprocess_date_field():
-	df = pd.read_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", encoding='iso-8859-1')
-
+	import pandas as pd
+	df = pd.read_csv('/usr/local/airflow/include/dataset/Online_Retail.csv', encoding='iso-8859-1')
+	
 	df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
-
-	# For each invoice, assume the maximum `datetime` is the `InvoiceDate` for each line
-
+	
+	"""
+	43 invoices have invoice lines with different timestamps. 
+	The difference in the time stamps is one minute.
+	We will take the maximum timestamp for each invoice.
+	"""
+	
 	df['InvoiceDate'] = df.groupby('InvoiceNo')['InvoiceDate'].transform('max')
-
+	
 	df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
-
-	df.to_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", index=False)
+	
+	df.to_csv('/usr/local/airflow/include/dataset/new_online_retail.csv', index=False)
 ```
 
-This task is performed before uploading the dataset to GCS and the transformation is performed in place.
+This task is performed before uploading the dataset to GCS.
 
 #### upload_csv_to_gcs
 
@@ -188,8 +193,8 @@ This `LocalFilesystemToGCSOperator` task uploads the CSV to GCS.
 ```
 upload_csv_to_gcs = LocalFilesystemToGCSOperator(
         task_id = 'upload_csv_to_gcs',
-        src = "/usr/local/airflow/include/dataset/Online_Retail.csv",
-        dst = "raw/Online_Retail.csv",
+        src = "/usr/local/airflow/include/dataset/new_online_retail.csv",
+        dst = "raw/new_online_retail.csv",
         bucket = "ade_online_retail",
         gcp_conn_id = 'gcp',
         mime_type = 'text/csv'
@@ -207,7 +212,7 @@ This task is responsible for loading the CSV into BigQuery.
 gcs_to_bigquery= GCSToBigQueryOperator(
         task_id = "gcs_to_bigquery",
         bucket='ade_online_retail',
-        source_objects=['raw/Online_Retail.csv'],
+        source_objects=['raw/new_online_retail.csv'],
         destination_project_dataset_table='online-retail-dp.retail.raw_invoices',
         source_format='CSV',
         create_disposition='CREATE_IF_NEEDED',
@@ -237,9 +242,6 @@ The function returns a called [check function](https://github.com/adedamola26/da
 This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/table/country.sql) that contains DDL statements for creating the _country_ table and DML statements for inserting data into it and altering it.
 
 ```
-with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
-        country_sql = f.read()
-
     create_country_table = BigQueryExecuteQueryOperator(
         task_id='create_country_table',
         sql=country_sql,
@@ -247,6 +249,7 @@ with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
         gcp_conn_id="gcp",
     )
 ```
+
 
 ### transform
 
