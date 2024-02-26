@@ -337,7 +337,7 @@ Data Warehouse Fundamentals for beginners | Udemy. Data Warehouse Fundamentals f
 Kimball, R., & Ross, M. (2013). The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling. John Wiley & Sons.
 
 # Appendix
-### A - Alternative Invoice Date Transformation
+### A - Alternative To Achieve Unique `invoice_key`
 
 We could replace the content of [dim_invoices.sql](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/dbt/models/transform/dim_invoice.sql) with the following:
 ```
