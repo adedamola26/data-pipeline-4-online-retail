@@ -159,9 +159,13 @@ create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
 The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
 For this reason, I created this `PythonOperator` task that casts the column into a string and preserves the `datetime` of the invoice line. This allow the loading into BigQuery successful.
 
-Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute. _See snippet below_
+Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute. 
 
-To ensure consistent surrogate keys in dbt for each invoice, we'll set the InvoiceDate for each line to be the maximum datetime within that specific invoice.
+[__See snippet below__](#putscrenshot here) 
+
+Because of this, the `dim_invoices` (defined here) had non-unique `invoice_key` surrogate keys. 
+
+To  ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's an alternative).
 
 Here's the callable that implements this task
 
@@ -185,7 +189,7 @@ def _preprocess_date_field():
 	df.to_csv('/usr/local/airflow/include/dataset/new_online_retail.csv', index=False)
 ```
 
-This task is performed before uploading the dataset to GCS.
+This task is performed before uploading the dataset to GCS. 
 
 #### upload_csv_to_gcs
 
@@ -331,3 +335,29 @@ Lamberti, M. (2023, August 8). Data Engineer Project: An end-to-end airflow data
 Data Warehouse Fundamentals for beginners | Udemy. Data Warehouse Fundamentals for Beginners. https://www.udemy.com/course/data-warehouse-fundamentals-for-beginners/
 
 Kimball, R., & Ross, M. (2013). The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling. John Wiley & Sons.
+
+# Appendix
+### A - Alternative Invoice Date Transformation
+
+We could replace the content of [dim_invoices.sql](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/dbt/models/transform/dim_invoice.sql) with the following:
+```
+with temp_1 as (
+    select
+        {{ dbt_utils.generate_surrogate_key(['invoiceno']) }} as invoice_key,
+        invoiceno,
+        InvoiceDate,
+	PARSE_DATETIME('%m/%d/%Y %I:%M %p', InvoiceDate) AS date_part,
+        {{ dbt_utils.generate_surrogate_key(['CustomerID', 'Country']) }} as customer_key,
+        row_number() over (partition by invoiceno order by date_part desc) as row_num
+    from {{ source('retail', 'raw_invoices') }} 
+)
+select 
+    invoice_key,
+    invoiceno,
+    invoicedate,
+    dc.customer_key
+from temp_1 t
+inner join {{ ref('dim_customer') }} dc on t.customer_key = dc.customer_key
+where t.row_num = 1;
+```
+This way, `raw_invoices` is the same as the data from the source system.
