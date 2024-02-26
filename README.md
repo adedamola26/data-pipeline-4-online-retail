@@ -165,7 +165,7 @@ Also 43 invoices contain invoice lines with different timestamps. This is probab
 
 Because of this, the `dim_invoices` (defined here) had non-unique `invoice_key` surrogate keys. 
 
-To  ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/README.md#a---alternative-invoice-date-transformation)).
+To  ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/README.md#a---alternative-to-achieve-unique-invoice_key)).
 
 Here's the callable that implements this task
 
