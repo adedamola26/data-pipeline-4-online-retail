@@ -83,6 +83,7 @@ _PK_- Primary Key, _FK_- Foreign Key
 
 ![Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
 
+`PK` - Primary Key/Surrogate Key
 `NK`- Natural Key
 
 **Highlights**:
