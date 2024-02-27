@@ -3,9 +3,9 @@
 In this project, I built a a data pipeline that extracts data from Kaggle and prepares it, at the end of the pipeline, for creating a dashboard.
 This pipeline consists of several other automated tasks including data preprocessing and running data quality checks.
 
-## The Workflow
+## Workflow
 
-The picture below shows the sequence of tasks that make up the pipeline.
+The picture below shows the relationships between the tasks that make up the pipeline.
 ![picture of the pipeline](figures/pipeline.png)
 
 ## Result
@@ -24,7 +24,7 @@ Here are the tools employed in this project along with their respective function
 - _Google Cloud Storage (GCS)_: for storing the CSV file on the cloud
 - _Google BigQuery(BQ)_: data warehouse/data mart for performing data analysis
 - _Soda_: for running data quality checks at multiple points along the pipeline
-- _dbt_: for implementing [dimensional model](#dimesional-model)
+- _dbt_: for implementing [dimensional model](#dimensional-model)
 - _Cosmos_: for integrating dbt with Airflow
 - _Metabase_: for building the dashboard
 - _Python_: for writing DAG script
@@ -32,12 +32,12 @@ Here are the tools employed in this project along with their respective function
 
 ## Dataset
 
-According to UCI Machine Learning Repository (main author of dataset), the dataset
+According to [its author](#references)
 
 > is a transactional dataset which contains all the transactions occurring between 01/12/2010 and 09/12/2011 for a UK-based and registered non-store online retail.
 > The company mainly sells unique all-occasion gifts. Many customers of the company are wholesalers.
 
-It contains 541,909 rows and 8 features. 406,829 rows contain non-null values. The dataset contains 25,800 unique invoices with each row of the dataset representing a unique invoice line.
+It contains 541,909 rows and 8 features. 135,080 rows contain a null value or more. The dataset contains 25,800 unique invoices with each row of the dataset representing a unique invoice line.
 
 ### Features and their descriptions
 
@@ -83,19 +83,19 @@ _PS_: The above ERD was not implemented. It was simply designed to give a sense 
 
 **Highlights**:
 
-- `Customer_ID` alone cannot uniquely identify each customer because several unique `Customer_ID`s have different countries ascribed to them. Hence, the composite PK in `Customer`.
-- `StockCode` is not a candidate key because several products with the same `StockCode` contain different descriptions and/or prices. Likewise, a combination of `StockCode` and `Description` is not a candidate key because several other products with the same 'StockCode' and `Description` contain different prices. Hence, the composite PK in `Product`.
+- _Customer_ID_ alone cannot uniquely identify each _Customer_ because several _Customer_ID_s have multiple combinations with different countries. Hence, the composite _PK_ in _Customer_.
+- For the _Product_ entity, _StockCode_ is not a candidate key because several products with the same _StockCode_ contain different descriptions and/or prices. Likewise, a combination of _StockCode_ and _Description_ is not a candidate key because several other products with the same _StockCode_ and _Description_ contain different prices. Hence, the composite _PK_.
 
-## Dimesional Model
+## Dimensional Model
 
 ![Dimensional Model](figures/Dimensional-Model.png)
 
-`PK` - Primary Key/Surrogate Key
-`NK`- Natural Key
+_PK_ - Primary Key/Surrogate Key
+_NK_- Natural Key
 
 **Highlights**:
 
-- The fact table stores relevant details for each invoice line.
+- The fact table stores the total price and quantity recorded on each invoice line.
 - Each invoice is owned by one customer and a table join can be performed to link an invoice line to the customer.
 
 ## Methodology
@@ -118,9 +118,9 @@ chain(
 
 ### Chain breakdown
 
-I arranged the first four tasks the way I did to test if there could be any improvement in DAG runtime. The result: no significant improvement noticed. Regardless, I stuck with the solution.
+I arranged the first four tasks the way I did to test if there could be any improvement in the DAG's runtime. The result: no significant improvement noticed. Nevertheless, I stuck with the solution.
 
-`download_dataset` and `create_empty_bq_dataset` can successfuly run in parallel because they are independent of each other. `create_country_table` is downstream only to `create_empty_bq_dataset` while `preprocess_date_field` is downstream only to `download_dataset`. Once the first four tasks run successfully, `upload_csv_to_gcs` gets queued, with each subsequent task being downstream to the previous one.
+`download_dataset` and `create_empty_bq_dataset` can successfuly run in parallel because they are independent of each other. `create_country_table` is downstream only to `create_empty_bq_dataset` while `preprocess_date_field` is downstream only to `download_dataset`. Once the first four tasks run successfully, `upload_csv_to_gcs` gets queued and each subsequent task is downstream to the previous one.
 
 To learn more about the function of each task, keep reading.
 
@@ -149,22 +149,22 @@ def _download_dataset():
     unzip = True
     )
 ```
-`KaggleApi` was locally imported because of [the way Airflow designed the scheduler](#references).
+`KaggleApi` was locally imported to [reduce the DAG's loading time](#references).
 
 #### preprocess_date_field
 
-The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
-For this reason, I created this `PythonOperator` task that casts the column into a string while preserving the `datetime` of the invoice line. This made the loading process into BigQuery successful.
+The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) kept returning an error that concerned a problem with parsing the _InvoiceDate_ column.
+For this reason, I created this `PythonOperator` task that converts the column's datatype into a string while preserving the `datetime` of the invoice line. This made the loading process into BigQuery successful.
 
-Also, 43 invoices contain invoice lines with different timestamps. This is may be due to the way the company's system processes each invoice (probably line-by-line) since the difference in the timestamps for all 43 invoices is just one minute.
+Also, 43 invoices contain invoice lines with different timestamps. This may be due to the way the company's system processes each invoice (one line at a time) since the difference in the timestamps for all 43 invoices is just one minute.
 
-_Here's a snippet of a `groupby` function call on `InvoiceDaate` and `InvoiceNo`_
+_Here's a snippet of a `groupby` function call on `InvoiceDate` and `InvoiceNo`_
 
 ![Group-by datetime and invoiceno](figures/invoicedate-timestamp-min-diff.png)
 
-Because of this, processing [`dim_invoices`](include/dbt/models/transform/dim_product.sql) results in non-unique `invoice_key` surrogate keys.
+Because of this, processing [_dim_invoices_](include/dbt/models/transform/dim_product.sql) results in non-unique _invoice_key_ surrogate keys.
 
-To ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](#a---alternative-to-achieve-unique-invoice_key)).
+To ensure unique surrogate keys in the invoice dimension, we'll set the _InvoiceDate_ for each line to be the maximum datetime within that specific invoice (Here's [an alternative](#a---alternative-to-achieve-unique-invoice_key)).
 
 Here's the callable that implements this task
 
@@ -192,7 +192,7 @@ This task is performed before uploading the dataset to GCS.
 
 #### create_empty_bq_dataset
 
-This task creates an empty dataset in BigQuery that stores all tables to be created.
+This task creates an empty dataset in BigQuery that stores all the tables we'll load into BigQuery.
 
 ```
 create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
@@ -203,7 +203,7 @@ create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
 ```
 
 #### create_country_table
-Completing this task loads a new (_country_) table into BigQuery. It runs an [SQL script](include/table/country.sql) (containing DDL and DML statements) that creates, inserts data into and alters the _country_ table (with ISO information that was used to plot a geospatial heatmap). The creation and insertion statements were sourced [externally](#references). The DML statements were included because I wanted to delete two columns and rename another without doing the work manually. 
+Completing this task loads a new (_country_) table into BigQuery. It runs an [SQL script](include/table/country.sql) (containing DDL and DML statements) that creates, inserts data into and alters the _country_ table (containing ISO information that was used to plot a geospatial heatmap). The creation and insertion statements were sourced [externally](#references). The DML statements were included because I wanted to delete two columns and rename another without doing the work manually. 
 
 ```
 create_country_table = BigQueryExecuteQueryOperator(
@@ -220,7 +220,7 @@ def read_country_sql():
 	with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
 	    return f.read()
 ```
-_I doubt this task would ideally be included in a pipeline. Nevertheless, it was included so I could get my hands dirty with as many diverse `Operators` as I could._
+_I doubt this task would ideally be included in a pipeline. Nevertheless, it was included so I could get my hands dirty with as many diverse Operators as I could._
 
 #### upload_csv_to_gcs
 
@@ -301,7 +301,7 @@ This task checks that the each model meets their [respective criteria](include/s
         return check(scan_name, checks_subpath)
 ```
 
-Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](include/soda/check_function.py).
+Like with [check_load](#check_load), it runs in the Soda _venv_ and returns a [check function call](include/soda/check_function.py).
 
 #### report
 
@@ -331,7 +331,7 @@ This checks that each report meets its [respective criteria](include/soda/checks
         return check(scan_name, checks_subpath)
 ```
 
-Similar to the other check tasks, it returns a call on the [check function](include/soda/check_function.py) and runs in the Soda venv.
+Similar to the other check tasks, it returns a call on the [check function](include/soda/check_function.py) and runs in the Soda _venv_.
 
 # Endnote
 
@@ -341,9 +341,11 @@ Thank you for reading!
 
 ## References
 
+Online retail. (2021, April 12). Kaggle. https://www.kaggle.com/datasets/tunguz/online-retail
+
 Best Practices — Airflow documentation. http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/best-practices.html#top-level-python-code
 
-Lamberti, M. (2023, August 8). Data Engineer Project: An end-to-end airflow data pipeline with BigQuery, DBT soda, and more!. YouTube. https://www.youtube.com/watch?v=DzxtCxi4YaA&t=1554s&ab_channel=DatawithMarc
+Lamberti, M. (2023, August 8). Data Engineer Project: An end-to-end airflow data pipeline with BigQuery, DBT soda, and more!. YouTube. https://www.youtube.com/watch?v=DzxtCxi4YaA&t=1556s&ab_channel=DatawithMarc
 
 Data Warehouse Fundamentals for beginners | Udemy. Data Warehouse Fundamentals for Beginners. https://www.udemy.com/course/data-warehouse-fundamentals-for-beginners/
 
@@ -353,7 +355,7 @@ Kimball, R., & Ross, M. (2013). The Data Warehouse Toolkit: The Definitive Guide
 
 ### A - Alternative To Achieve Unique `invoice_key`
 
-As [earlier stated](#preprocess_date_field), we could replace the content of [dim_invoices.sql](include/dbt/models/transform/dim_invoice.sql) with the following:
+As [earlier stated](#preprocess_date_field), we could replace the content of [_dim_invoices.sql_](include/dbt/models/transform/dim_invoice.sql) with the following:
 
 ```
 with temp_1 as (
@@ -376,4 +378,4 @@ inner join {{ ref('dim_customer') }} dc on t.customer_key = dc.customer_key
 where t.row_num = 1;
 ```
 
-This way, except the change made to `InvoiceDate`'s datatype, `raw_invoices` is the same as the data from the source system.
+This way, except the change made to _InvoiceDate_'s datatype, _raw_invoices_ will contain the same data as the dataset from the source system.
