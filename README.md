@@ -6,15 +6,15 @@ This pipeline consists of several other automated tasks including data preproces
 ## Workflow
 
 The picture below shows the relationships between the tasks that make up the pipeline.
-![picture of the pipeline](figures/pipeline.png)
+![pipeline](https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/44fb8c23-2615-4e82-9f03-e6e20b3b0aa2)
+
 
 ## Result
 
-You can skim the [description of the dataset](#dataset) and/or the [ERD](#erd-for-source-tables) before watching the video for a better follow-along. 
+You can skim the [description of the dataset](#dataset) and/or the [ERD](#erd) before watching the video for a better follow-along. 
 
 https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/8232c1af-ae46-4137-8d0b-c3af0d277d87
 ## Tools used
-
 Here are the tools employed in this project along with their respective functions:
 
 - _Airflow_: for orchestrating the pipeline
@@ -73,11 +73,12 @@ _Country_
 
 > the name of the country where each customer resides
 
-## ERD for source tables
+## ERD
+![ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/0bd9898a-bf89-4437-b1a7-778cb77741ab)
 
-![ERD](figures/ERD.png)
+__PK__- Primary Key
 
-__PK__- Primary Key, __FK__- Foreign Key
+__FK__- Foreign Key
 
 _PS_: The above ERD was not implemented. It was simply designed to give a sense of what the source system would look like if it were normalized to 3NF. 
 
@@ -87,11 +88,11 @@ _PS_: The above ERD was not implemented. It was simply designed to give a sense 
 - For the _Product_ entity, _StockCode_ is not a candidate key because several products with the same _StockCode_ contain different descriptions and/or prices. Likewise, a combination of _StockCode_ and _Description_ is not a candidate key because several other products with the same _StockCode_ and _Description_ contain different prices. Hence, the composite _PK_.
 
 ## Dimensional Model
+![Dimensional-Model](https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/7c9a58c5-f95d-494e-aa61-a4a0cb278909)
 
-![Dimensional Model](figures/Dimensional-Model.png)
+__PK__- Primary Key/Surrogate Key
 
-_PK_ - Primary Key/Surrogate Key
-_NK_- Natural Key
+__NK__- Natural Key
 
 **Highlights**:
 
@@ -158,13 +159,13 @@ For this reason, I created this `PythonOperator` task that converts the column's
 
 Also, 43 invoices contain invoice lines with different timestamps. This may be due to the way the company's system processes each invoice (one line at a time) since the difference in the timestamps for all 43 invoices is just one minute.
 
-_Here's a snippet of a `groupby` function call on `InvoiceDate` and `InvoiceNo`_
+_Here's a snippet of a `groupby` function call on 'InvoiceDate' and 'InvoiceNo'_
 
-![Group-by datetime and invoiceno](figures/invoicedate-timestamp-min-diff.png)
+![invoicedate-timestamp-min-diff](https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/7de2444f-39d2-498d-b3db-6997ac89ec7f)
 
 Because of this, processing [_dim_invoices_](include/dbt/models/transform/dim_product.sql) results in non-unique _invoice_key_ surrogate keys.
 
-To ensure unique surrogate keys in the invoice dimension, we'll set the _InvoiceDate_ for each line to be the maximum datetime within that specific invoice (Here's [an alternative](#a---alternative-to-achieve-unique-invoice_key)).
+To ensure unique surrogate keys in the invoice dimension, we'll set the _InvoiceDate_ for each line to be the maximum datetime within that specific invoice (here's [an alternative](#a---alternative-to-achieve-unique-invoice_key)).
 
 Here's the callable that implements this task
 
@@ -242,7 +243,7 @@ The service account has admin priviledges for BigQuery and GCS.
 
 #### gcs_to_bigquery
 
-This task is responsible for loading the CSV into BigQuery.
+This task is responsible for loading the CSV from GCS into BigQuery.
 
 ```
 gcs_to_bigquery= GCSToBigQueryOperator(
