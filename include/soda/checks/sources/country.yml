@@ -1,0 +1,10 @@
+checks for country:
+  - schema:
+      fail:
+        when required column missing: [iso, name, iso3, numcode, phonecode]
+        when wrong column type:
+          iso: string
+          name: string
+          iso3: string
+          numcode: integer
+          phonecode: integer
