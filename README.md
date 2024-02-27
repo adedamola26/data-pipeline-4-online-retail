@@ -213,14 +213,14 @@ create_country_table = BigQueryExecuteQueryOperator(
         gcp_conn_id="gcp",
     )
 ```
-Here's the callable it implements.
+Here's the function it calls.
 
 ```
 def read_country_sql():
 	with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
 	    return f.read()
 ```
-_I doubt this task would ideally be included in a pipeline. Nevertheless, it was included so I could get my hands dirty with as many `Operators` as I could._
+_I doubt this task would ideally be included in a pipeline. Nevertheless, it was included so I could get my hands dirty with as many diverse `Operators` as I could._
 
 #### upload_csv_to_gcs
 
@@ -271,24 +271,11 @@ The task is carried out in a Soda virtual environment ([configured here](Dockerf
         return check(scan_name, checks_subpath)
 ```
 
-The function returns a called [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
-
-#### create_country_table
-
-This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/table/country.sql) that contains DDL statements for creating the _country_ table and DML statements for inserting data into it and altering it.
-
-```
-    create_country_table = BigQueryExecuteQueryOperator(
-        task_id='create_country_table',
-        sql=country_sql,
-        use_legacy_sql=False,
-        gcp_conn_id="gcp",
-    )
-```
+The function returns a called [check function](include/soda/check_function.py).
 
 #### transform
 
-This task creates [dbt models](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/transform) and loads them into BigQuery.
+This task is handled by dbt and implements the [dimensional model](#dimensional-model) and loads [the tables](include/dbt/models/transform) into BigQuery.
 
 ```
 transform = DbtTaskGroup(
@@ -304,7 +291,7 @@ transform = DbtTaskGroup(
 
 #### check_transform
 
-This task checks that the each model meets their [respective criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/transform).
+This task checks that the each model meets their [respective criteria](include/soda/checks/transform).
 
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
@@ -314,11 +301,11 @@ This task checks that the each model meets their [respective criteria](https://g
         return check(scan_name, checks_subpath)
 ```
 
-Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
+Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](include/soda/check_function.py).
 
 #### report
 
-This task creates tables ([defined here](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/report)) that will be used to generate plots for the Metabase dashboard.
+This task creates tables ([defined here](include/dbt/models/report)) that will be used to generate plots for the dashboard.
 
 ```
 report = DbtTaskGroup(
@@ -334,7 +321,7 @@ report = DbtTaskGroup(
 
 #### check_report
 
-This checks that each report meets its [respective criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/soda/checks/report).
+This checks that each report meets its [respective criteria](include/soda/checks/report).
 
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
@@ -344,7 +331,7 @@ This checks that each report meets its [respective criteria](https://github.com/
         return check(scan_name, checks_subpath)
 ```
 
-Similar to the other check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv.
+Similar to the other check tasks, it returns a call on the [check function](include/soda/check_function.py) and runs in the Soda venv.
 
 # Endnote
 
@@ -366,7 +353,7 @@ Kimball, R., & Ross, M. (2013). The Data Warehouse Toolkit: The Definitive Guide
 
 ### A - Alternative To Achieve Unique `invoice_key`
 
-We could replace the content of [dim_invoices.sql](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/dbt/models/transform/dim_invoice.sql) with the following:
+As [earlier stated](#preprocess_date_field), we could replace the content of [dim_invoices.sql](include/dbt/models/transform/dim_invoice.sql) with the following:
 
 ```
 with temp_1 as (
@@ -389,4 +376,4 @@ inner join {{ ref('dim_customer') }} dc on t.customer_key = dc.customer_key
 where t.row_num = 1;
 ```
 
-This way, `raw_invoices` is the same as the data from the source system.
+This way, except the change made to `InvoiceDate`'s datatype, `raw_invoices` is the same as the data from the source system.
