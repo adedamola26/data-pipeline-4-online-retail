@@ -32,9 +32,9 @@ Here are the tools employed in this project along with their respective function
 
 ## Dataset
 
-According to [its author](#references)
+According to [its author](#references), the dataset is
 
-> is a transactional dataset which contains all the transactions occurring between 01/12/2010 and 09/12/2011 for a UK-based and registered non-store online retail.
+> is a transnational dataset which contains all the transactions occurring between 01/12/2010 and 09/12/2011 for a UK-based and registered non-store online retail.
 > The company mainly sells unique all-occasion gifts. Many customers of the company are wholesalers.
 
 It contains 541,909 rows and 8 features. 135,080 rows contain a null value or more. The dataset contains 25,800 unique invoices with each row of the dataset representing a unique invoice line.
