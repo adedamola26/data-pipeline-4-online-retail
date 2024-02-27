@@ -5,6 +5,8 @@ This pipeline consists of several other automated tasks including data preproces
 
 # Result
 
+For a better understanding of the demo, you can skim the [description of the dataset](#dataset) and/or the [ERD](#erd-for-source-tables)
+
 https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/8232c1af-ae46-4137-8d0b-c3af0d277d87
 ## Tools used
 
