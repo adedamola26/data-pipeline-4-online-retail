@@ -1,8 +1,11 @@
 # End-to-End Data Pipeline For An E-rerail Company's Customer Transaction Dataset
 
-In this project, I build a a data pipeline that extracts data from Kaggle and prepares it, at the end of the pipeline, for creating a dashboard.
+In this project, I built a a data pipeline that extracts data from Kaggle and prepares it, at the end of the pipeline, for creating a dashboard.
 This pipeline consists of several other automated tasks including data preprocessing and running data quality checks.
 
+# Result
+
+https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/8232c1af-ae46-4137-8d0b-c3af0d277d87
 ## Tools used
 
 Here are the tools employed in this project along with their respective functions:
@@ -256,7 +259,7 @@ This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-
     )
 ```
 
-### transform
+#### transform
 
 This task creates [dbt models](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/transform) and loads them into BigQuery.
 
@@ -286,7 +289,7 @@ This task checks that the each model meets their [respective criteria](https://g
 
 Like with [check_load](#check_load), it runs in the Soda venv and returns a [check function call](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py).
 
-### report
+#### report
 
 This task creates tables ([defined here](https://github.com/adedamola26/data-pipeline-4-online-retail/tree/main/include/dbt/models/report)) that will be used to generate plots for the Metabase dashboard.
 
@@ -315,12 +318,6 @@ This checks that each report meets its [respective criteria](https://github.com/
 ```
 
 Similar to the other check tasks, it returns a call on the [check function](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/check_function.py) and runs in the Soda venv.
-
-# Result
-
-Here's a sped-up video recording of the dag run. The first X seconds shows there's no data in the destination _include/dataset/_ folder in the root folder, no dataset in the CGS bucket and no data in the data warehouse.
-
-The next videos show the dashboard made with the "report\_..." tables made with dbt.
 
 # Endnote
 
