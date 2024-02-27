@@ -163,9 +163,11 @@ create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
 The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
 For this reason, I created this `PythonOperator` task that casts the column into a string and preserves the `datetime` of the invoice line. This allow the loading into BigQuery successful.
 
-Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute.
+Also, 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute.
 
-[__See snippet below__](#putscrenshot here)
+_Here's a snippet of `groupby` function call on `InvoiceDaate` and `InvoiceNo`_
+
+![Group-by datetime and invoiceno](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/invoicedate-timestamp-min-diff.png)
 
 Because of this, the `dim_invoices` (defined here) had non-unique `invoice_key` surrogate keys.
 
