@@ -99,7 +99,7 @@ The following Airflow `chain` function describes the workflow of the tasks that 
 chain(
 	[download_dataset, create_empty_bq_dataset],
 	[preprocess_date_field, create_country_table],
-	upload_csv_to_gcs, 
+	upload_csv_to_gcs,
 	gcs_to_bigquery,
 	check_load(),
         transform,
@@ -110,11 +110,12 @@ chain(
 ```
 
 ### Chain breakdown
-I arranged the first four tasks the way I did to test if there could be any improvement in DAG runtime. The result: no significant improvement noticed. Regardless, I stuck with the solution. 
+
+I arranged the first four tasks the way I did to test if there could be any improvement in DAG runtime. The result: no significant improvement noticed. Regardless, I stuck with the solution.
 
 `download_dataset` and `create_empty_bq_dataset` can successfuly run in parallel because they are independent of each other. `create_country_table` is downstream only to `create_empty_bq_dataset` while `preprocess_date_field` is downstream only to `download_dataset`. Once the first four tasks run successfully, the next tasks get triggered, with each task being upstream to the the next task.
 
-To learn more about the function of each task, keep reading. 
+To learn more about the function of each task, keep reading.
 
 #### download_dataset
 
@@ -159,13 +160,13 @@ create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
 The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
 For this reason, I created this `PythonOperator` task that casts the column into a string and preserves the `datetime` of the invoice line. This allow the loading into BigQuery successful.
 
-Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute. 
+Also 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute.
 
-[__See snippet below__](#putscrenshot here) 
+[__See snippet below__](#putscrenshot here)
 
-Because of this, the `dim_invoices` (defined here) had non-unique `invoice_key` surrogate keys. 
+Because of this, the `dim_invoices` (defined here) had non-unique `invoice_key` surrogate keys.
 
-To  ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/README.md#a---alternative-to-achieve-unique-invoice_key)).
+To ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/README.md#a---alternative-to-achieve-unique-invoice_key)).
 
 Here's the callable that implements this task
 
@@ -173,23 +174,23 @@ Here's the callable that implements this task
 def _preprocess_date_field():
 	import pandas as pd
 	df = pd.read_csv('/usr/local/airflow/include/dataset/Online_Retail.csv', encoding='iso-8859-1')
-	
+
 	df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
-	
+
 	"""
-	43 invoices have invoice lines with different timestamps. 
+	43 invoices have invoice lines with different timestamps.
 	The difference in the time stamps is one minute.
 	We will take the maximum timestamp for each invoice.
 	"""
-	
+
 	df['InvoiceDate'] = df.groupby('InvoiceNo')['InvoiceDate'].transform('max')
-	
+
 	df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
-	
+
 	df.to_csv('/usr/local/airflow/include/dataset/new_online_retail.csv', index=False)
 ```
 
-This task is performed before uploading the dataset to GCS. 
+This task is performed before uploading the dataset to GCS.
 
 #### upload_csv_to_gcs
 
@@ -254,7 +255,6 @@ This task executes an [SQL script](https://github.com/adedamola26/data-pipeline-
         gcp_conn_id="gcp",
     )
 ```
-
 
 ### transform
 
@@ -337,9 +337,11 @@ Data Warehouse Fundamentals for beginners | Udemy. Data Warehouse Fundamentals f
 Kimball, R., & Ross, M. (2013). The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling. John Wiley & Sons.
 
 # Appendix
+
 ### A - Alternative To Achieve Unique `invoice_key`
 
 We could replace the content of [dim_invoices.sql](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/dbt/models/transform/dim_invoice.sql) with the following:
+
 ```
 with temp_1 as (
     select
@@ -349,9 +351,9 @@ with temp_1 as (
 	PARSE_DATETIME('%m/%d/%Y %I:%M %p', InvoiceDate) AS date_part,
         {{ dbt_utils.generate_surrogate_key(['CustomerID', 'Country']) }} as customer_key,
         row_number() over (partition by invoiceno order by date_part desc) as row_num
-    from {{ source('retail', 'raw_invoices') }} 
+    from {{ source('retail', 'raw_invoices') }}
 )
-select 
+select
     invoice_key,
     invoiceno,
     invoicedate,
@@ -360,4 +362,5 @@ from temp_1 t
 inner join {{ ref('dim_customer') }} dc on t.customer_key = dc.customer_key
 where t.row_num = 1;
 ```
+
 This way, `raw_invoices` is the same as the data from the source system.
