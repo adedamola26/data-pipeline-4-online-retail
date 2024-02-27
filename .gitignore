@@ -28,3 +28,4 @@ include/dbt/profiles.yml
 astro_README.md
 packages.txt
 RECIME.md
+figures/
