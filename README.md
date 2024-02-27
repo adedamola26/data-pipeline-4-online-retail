@@ -3,9 +3,14 @@
 In this project, I built a a data pipeline that extracts data from Kaggle and prepares it, at the end of the pipeline, for creating a dashboard.
 This pipeline consists of several other automated tasks including data preprocessing and running data quality checks.
 
-# Result
+## The Workflow
 
-For a better understanding of the demo, you can skim the [description of the dataset](#dataset) and/or the [ERD](#erd-for-source-tables)
+The picture below shows the sequence of tasks that make up the pipeline.
+![picture of the pipeline](figures/pipeline.png)
+
+## Result
+
+You can skim the [description of the dataset](#dataset) and/or the [ERD](#erd-for-source-tables) before watching the video for a better follow-along. 
 
 https://github.com/adedamola26/data-pipeline-4-online-retail/assets/122896944/8232c1af-ae46-4137-8d0b-c3af0d277d87
 ## Tools used
@@ -19,7 +24,7 @@ Here are the tools employed in this project along with their respective function
 - _Google Cloud Storage (GCS)_: for storing the CSV file on the cloud
 - _Google BigQuery(BQ)_: data warehouse/data mart for performing data analysis
 - _Soda_: for running data quality checks at multiple points along the pipeline
-- _dbt_: for building data models
+- _dbt_: for implementing [dimensional model](#dimesional-model)
 - _Cosmos_: for integrating dbt with Airflow
 - _Metabase_: for building the dashboard
 - _Python_: for writing DAG script
@@ -68,33 +73,30 @@ _Country_
 
 > the name of the country where each customer resides
 
-## The Workflow
-
-The picture below shows the sequence of tasks that make up the pipeline.
-![picture of the pipeline](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/pipeline.png)
-
 ## ERD for source tables
 
-![ERD](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/ERD.png)
+![ERD](figures/ERD.png)
 
-_PK_- Primary Key, _FK_- Foreign Key
+__PK__- Primary Key, __FK__- Foreign Key
+
+_PS_: The above ERD was not implemented. It was simply designed to give a sense of what the source system would look like if it were normalized to 3NF. 
 
 **Highlights**:
 
-- `Customer_ID` alone cannot uniquely identify each customer because several `Customer_ID`s have different countries ascribed to them. Hence, the composite PK in `Customer`.
-- Several products with same `StockCode` contain different descriptions and several products with the same 'StockCode' and `Description` contain different prices. Hence, the composite PK in `Product`.
+- `Customer_ID` alone cannot uniquely identify each customer because several unique `Customer_ID`s have different countries ascribed to them. Hence, the composite PK in `Customer`.
+- `StockCode` is not a candidate key because several products with the same `StockCode` contain different descriptions and/or prices. Likewise, a combination of `StockCode` and `Description` is not a candidate key because several other products with the same 'StockCode' and `Description` contain different prices. Hence, the composite PK in `Product`.
 
 ## Dimesional Model
 
-![Dimensional Model](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/Dimensional-Model.png)
+![Dimensional Model](figures/Dimensional-Model.png)
 
 `PK` - Primary Key/Surrogate Key
 `NK`- Natural Key
 
 **Highlights**:
 
-- The fact table stores relevant details for each invoice line
-- Each invoice is owned by one customer and a table join can be performed to link an invoice line to the customer
+- The fact table stores relevant details for each invoice line.
+- Each invoice is owned by one customer and a table join can be performed to link an invoice line to the customer.
 
 ## Methodology
 
@@ -118,7 +120,7 @@ chain(
 
 I arranged the first four tasks the way I did to test if there could be any improvement in DAG runtime. The result: no significant improvement noticed. Regardless, I stuck with the solution.
 
-`download_dataset` and `create_empty_bq_dataset` can successfuly run in parallel because they are independent of each other. `create_country_table` is downstream only to `create_empty_bq_dataset` while `preprocess_date_field` is downstream only to `download_dataset`. Once the first four tasks run successfully, the next tasks get triggered, with each task being upstream to the the next task.
+`download_dataset` and `create_empty_bq_dataset` can successfuly run in parallel because they are independent of each other. `create_country_table` is downstream only to `create_empty_bq_dataset` while `preprocess_date_field` is downstream only to `download_dataset`. Once the first four tasks run successfully, `upload_csv_to_gcs` gets queued, with each subsequent task being downstream to the previous one.
 
 To learn more about the function of each task, keep reading.
 
@@ -147,33 +149,22 @@ def _download_dataset():
     unzip = True
     )
 ```
-
-#### create_empty_bq_dataset
-
-This task creates an empty dataset in BigQuery that stores all tables to be created.
-
-```
-create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
-	task_id="create_empty_bq_dataset",
-	dataset_id="retail",
-	gcp_conn_id="gcp"
-)
-```
+`KaggleApi` was locally imported because of [the way Airflow designed the scheduler](#references).
 
 #### preprocess_date_field
 
 The [task for loading the CSV from GCS to BigQuery](#gcs_to_bigquery) was failing because it had trouble parsing the _InvoiceDate_ column.
-For this reason, I created this `PythonOperator` task that casts the column into a string and preserves the `datetime` of the invoice line. This allow the loading into BigQuery successful.
+For this reason, I created this `PythonOperator` task that casts the column into a string while preserving the `datetime` of the invoice line. This made the loading process into BigQuery successful.
 
-Also, 43 invoices contain invoice lines with different timestamps. This is probably due to the system processing the transaction line-by-line since the difference in the timestamps for all 43 invoices is one minute.
+Also, 43 invoices contain invoice lines with different timestamps. This is may be due to the way the company's system processes each invoice (probably line-by-line) since the difference in the timestamps for all 43 invoices is just one minute.
 
-_Here's a snippet of `groupby` function call on `InvoiceDaate` and `InvoiceNo`_
+_Here's a snippet of a `groupby` function call on `InvoiceDaate` and `InvoiceNo`_
 
-![Group-by datetime and invoiceno](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/figures/invoicedate-timestamp-min-diff.png)
+![Group-by datetime and invoiceno](figures/invoicedate-timestamp-min-diff.png)
 
-Because of this, the `dim_invoices` (defined here) had non-unique `invoice_key` surrogate keys.
+Because of this, processing [`dim_invoices`](include/dbt/models/transform/dim_product.sql) results in non-unique `invoice_key` surrogate keys.
 
-To ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/README.md#a---alternative-to-achieve-unique-invoice_key)).
+To ensure unique surrogate keys in the invoice dimension, we'll set the `InvoiceDate` for each line to be the maximum datetime within that specific invoice (Here's [an alternative](#a---alternative-to-achieve-unique-invoice_key)).
 
 Here's the callable that implements this task
 
@@ -198,6 +189,38 @@ def _preprocess_date_field():
 ```
 
 This task is performed before uploading the dataset to GCS.
+
+#### create_empty_bq_dataset
+
+This task creates an empty dataset in BigQuery that stores all tables to be created.
+
+```
+create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
+	task_id="create_empty_bq_dataset",
+	dataset_id="retail",
+	gcp_conn_id="gcp"
+)
+```
+
+#### create_country_table
+Completing this task loads a new (_country_) table into BigQuery. It runs an [SQL script](include/table/country.sql) (containing DDL and DML statements) that creates, inserts data into and alters the _country_ table (with ISO information that was used to plot a geospatial heatmap). The creation and insertion statements were sourced [externally](#references). The DML statements were included because I wanted to delete two columns and rename another without doing the work manually. 
+
+```
+create_country_table = BigQueryExecuteQueryOperator(
+        task_id='create_country_table',
+        sql=read_country_sql(),
+        use_legacy_sql=False,
+        gcp_conn_id="gcp",
+    )
+```
+Here's the callable it implements.
+
+```
+def read_country_sql():
+	with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
+	    return f.read()
+```
+_I doubt this task would ideally be included in a pipeline. Nevertheless, it was included so I could get my hands dirty with as many `Operators` as I could._
 
 #### upload_csv_to_gcs
 
@@ -237,8 +260,8 @@ gcs_to_bigquery= GCSToBigQueryOperator(
 
 #### check_load
 
-This task uses Soda to check that the loaded data meets [these criteria](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/include/soda/checks/sources/raw_invoices.yml).
-The task is carried out in a Soda virtual environment ([configured here](https://github.com/adedamola26/data-pipeline-4-online-retail/blob/main/Dockerfile)) to avoid dependency conflicts with Airflow.
+This task uses Soda to check that the tables loaded into BigQuery, up till this point, meet [these criteria](include/soda/checks/sources).
+The task is carried out in a Soda virtual environment ([configured here](Dockerfile)) to avoid dependency conflicts with Airflow.
 
 ```
 @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
@@ -330,6 +353,8 @@ If you've got any feedback for me, please feel free to connect with me on [Linke
 Thank you for reading!
 
 ## References
+
+Best Practices — Airflow documentation. http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/best-practices.html#top-level-python-code
 
 Lamberti, M. (2023, August 8). Data Engineer Project: An end-to-end airflow data pipeline with BigQuery, DBT soda, and more!. YouTube. https://www.youtube.com/watch?v=DzxtCxi4YaA&t=1554s&ab_channel=DatawithMarc
 
