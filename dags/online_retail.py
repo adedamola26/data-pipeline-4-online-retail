@@ -1,13 +1,10 @@
 from airflow.decorators import dag, task
 from datetime import datetime
-import json
-from kaggle.api.kaggle_api_extended import KaggleApi
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator, BigQueryExecuteQueryOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.models.baseoperator import chain
 from airflow.operators.python_operator import PythonOperator
-import pandas as pd
 from include.dbt.cosmos_config import DBT_PROJECT_CONFIG, DBT_CONFIG
 from cosmos.airflow.task_group import DbtTaskGroup
 from cosmos.constants import LoadMode
@@ -22,8 +19,21 @@ from cosmos.config import RenderConfig
 )
 def retail():
 
-    def _preprocess_date_format():
-        df = pd.read_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", encoding='iso-8859-1')
+
+    def _download_dataset():
+        from kaggle.api.kaggle_api_extended import KaggleApi
+        api = KaggleApi()
+        api.authenticate() # Kaggle API is set in .env file
+        api.dataset_download_files(
+        dataset = 'tunguz/online-retail',
+        path = '/usr/local/airflow/include/dataset',
+        force = True,
+        unzip = True
+        )
+            
+    def _preprocess_date_field():
+        import pandas as pd
+        df = pd.read_csv('/usr/local/airflow/include/dataset/Online_Retail.csv', encoding='iso-8859-1')
 
         df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce')
 
@@ -37,40 +47,35 @@ def retail():
 
         df['InvoiceDate'] = df['InvoiceDate'].dt.strftime('%m/%d/%Y %I:%M %p')
         
-        df.to_csv("/usr/local/airflow/include/dataset/Online_Retail.csv", index=False)
-
-    def _download_dataset():
-        api = KaggleApi()
-        api.authenticate() # Kaggle API is set in .env file
-        api.dataset_download_files(
-        dataset = 'tunguz/online-retail',
-        path = '/usr/local/airflow/include/dataset',
-        force = True,
-        unzip = True
-        )
+        df.to_csv('/usr/local/airflow/include/dataset/new_online_retail.csv', index=False)
+    
+    def read_country_sql():
+        with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
+            return f.read()
+    
     
     download_dataset = PythonOperator(
     task_id='download_dataset',
     python_callable= _download_dataset,
     )
 
-    preprocess_date_format = PythonOperator(
-        task_id='preprocess_date_format',
-        python_callable= _preprocess_date_format,
+    preprocess_date_field = PythonOperator(
+        task_id='preprocess_date_field',
+        python_callable= _preprocess_date_field,
     )
 
 
     upload_csv_to_gcs = LocalFilesystemToGCSOperator(
         task_id = 'upload_csv_to_gcs',
-        src = "/usr/local/airflow/include/dataset/Online_Retail.csv",
-        dst = "raw/Online_Retail.csv",
+        src = '/usr/local/airflow/include/dataset/new_online_retail.csv',
+        dst = "raw/new_online_retail.csv",
         bucket = "ade_online_retail",
         gcp_conn_id = 'gcp',
         mime_type = 'text/csv'
     )
 
-    create_retail_dataset = BigQueryCreateEmptyDatasetOperator(
-	task_id="create_retail_dataset",
+    create_empty_bq_dataset = BigQueryCreateEmptyDatasetOperator(
+	task_id="create_empty_bq_dataset",
 	dataset_id="retail",
 	gcp_conn_id="gcp"
 )
@@ -78,7 +83,7 @@ def retail():
     gcs_to_bigquery= GCSToBigQueryOperator(
         task_id = "gcs_to_bigquery",
         bucket='ade_online_retail',
-        source_objects=['raw/Online_Retail.csv'],
+        source_objects=['raw/new_online_retail.csv'],
         destination_project_dataset_table='online-retail-dp.retail.raw_invoices',
         source_format='CSV',
         create_disposition='CREATE_IF_NEEDED',
@@ -92,13 +97,10 @@ def retail():
         from include.soda.check_function import check
 
         return check(scan_name, checks_subpath)
-    
-    with open('/usr/local/airflow/include/table/country.sql', 'r') as f:
-        country_sql = f.read()
 
     create_country_table = BigQueryExecuteQueryOperator(
         task_id='create_country_table',
-        sql=country_sql,
+        sql=read_country_sql(),
         use_legacy_sql=False,
         gcp_conn_id="gcp",
     )
@@ -135,20 +137,18 @@ def retail():
         from include.soda.check_function import check
 
         return check(scan_name, checks_subpath)
-    
 
     chain(
-        download_dataset,
-        preprocess_date_format,
-        upload_csv_to_gcs,
-        create_retail_dataset,
+        [download_dataset, create_empty_bq_dataset],
+        [preprocess_date_field, create_country_table],
+        upload_csv_to_gcs, 
         gcs_to_bigquery,
         check_load(),
-        create_country_table,
         transform,
         check_transform(),
         report,
         check_report()
     )
     
+
 retail()
