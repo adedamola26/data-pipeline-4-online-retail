@@ -1,6 +1,6 @@
 # End-to-End Data Pipeline For An E-rerail Company's Customer Transaction Dataset
 
-In this project, I implement an Airflow-based pipeline,  extracting data from a REST API. The goal was to generate tailored reports for a dashboard while running data integrity checks in BigQuery using Soda.
+In this project, I implement an Airflow-based pipeline,  extracting data from a REST API. The goal was to generate tailored reports for a dashboard while running data quality checks on BigQuery using Soda.
 
 ## Workflow
 
