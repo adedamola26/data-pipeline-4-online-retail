@@ -1,7 +1,6 @@
 # End-to-End Data Pipeline For An E-rerail Company's Customer Transaction Dataset
 
-In this project, I built a a data pipeline that extracts data from Kaggle and prepares it, at the end of the pipeline, for creating a dashboard.
-This pipeline consists of several other automated tasks including data preprocessing and running data quality checks.
+In this project, I implement an Airflow-based pipeline,  extracting data from a REST API. The goal was to generate tailored reports for a dashboard while running data integrity checks in BigQuery using Soda.
 
 ## Workflow
 
